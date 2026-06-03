@@ -8,9 +8,9 @@ from PySide6.QtWidgets import (
 )
 from PySide6.QtCore import Qt
 from PySide6.QtGui import QPixmap
-from database import check_login
+
+from database import check_login_with_role, is_waiting_for_approval
 from ui_qt.driver_dashboard import DriverDashboard
-from PySide6.QtWidgets import QApplication
 from modules.otp_manager import send_otp
 from ui_qt.otp_window import OTPWindow
 
@@ -252,8 +252,6 @@ class LoginWindow(QWidget):
 
     def login_action(self):
         from PySide6.QtWidgets import QMessageBox
-        from database import check_login
-        from ui_qt.driver_dashboard import DriverDashboard
 
         username = self.username.text().strip()
         password = self.password.text().strip()
@@ -262,27 +260,58 @@ class LoginWindow(QWidget):
             QMessageBox.warning(self, "Login Error", "Please enter username and password")
             return
 
-        result = check_login(username, password)
+        result = check_login_with_role(username, password)
 
         if result:
-            driver_id, driver_name, driver_email = result
+            driver_id, driver_name, driver_email, role = result
 
+            # ================= ADMIN LOGIN =================
+            if role == "admin":
+                from ui_qt.admin_dashboard import AdminDashboard
+
+                for widget in QApplication.topLevelWidgets():
+                    if widget.__class__.__name__ == "HomeWindow":
+                        widget.hide()
+
+                self.admin_dashboard = AdminDashboard()
+                self.admin_dashboard.showMaximized()
+
+                self.close()
+                return
+
+            # ================= DRIVER LOGIN WITH OTP =================
             if not driver_email:
                 QMessageBox.warning(self, "2FA Error", "No email found for this driver.")
                 return
 
+            print("OTP SEND STARTED:", driver_email)
+
             otp_sent = send_otp(driver_email)
+
+            print("OTP SENT RESULT:", otp_sent)
 
             if not otp_sent:
                 QMessageBox.critical(self, "OTP Error", "Failed to send OTP. Check Brevo API.")
                 return
 
             self.otp_window = OTPWindow(driver_id, driver_name, driver_email)
-            self.otp_window.show()
+            self.otp_window.showMaximized()
 
-            self.close()
+            self.hide()
+
         else:
-            QMessageBox.critical(self, "Login Failed", "Incorrect username or password")
+            if is_waiting_for_approval(username):
+                QMessageBox.information(
+                    self,
+                    "Approval Required",
+                    "Your account has been registered successfully, but it is waiting for Admin approval."
+                )
+            else:
+                QMessageBox.critical(
+                    self,
+                    "Login Failed",
+                    "Incorrect username or password"
+                )
 
     def open_forgot_password(self):
         from ui_qt.forgot_password_window import ForgotPasswordWindow

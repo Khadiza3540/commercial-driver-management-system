@@ -6,6 +6,7 @@ from PySide6.QtCore import Qt
 
 from modules.otp_manager import verify_otp
 from ui_qt.driver_dashboard import DriverDashboard
+from PySide6.QtWidgets import QApplication
 
 
 class OTPWindow(QWidget):
@@ -93,9 +94,28 @@ class OTPWindow(QWidget):
             QMessageBox.warning(self, "OTP Error", "Please enter OTP.")
             return
 
+        # OTP check
         if verify_otp(self.driver_email, otp):
-            self.dashboard = DriverDashboard(self.driver_name, self.driver_id)
+
+            # Home window hide হবে
+            for widget in QApplication.topLevelWidgets():
+                if widget.__class__.__name__ == "HomeWindow":
+                    widget.hide()
+
+            # Dashboard open হবে
+            self.dashboard = DriverDashboard(
+                self.driver_name,
+                self.driver_id
+            )
+
             self.dashboard.showMaximized()
+
+
             self.close()
+
         else:
-            QMessageBox.critical(self, "OTP Failed", "Invalid OTP. Please try again.")
+            QMessageBox.critical(
+                self,
+                "OTP Failed",
+                "Invalid OTP. Please try again."
+            )

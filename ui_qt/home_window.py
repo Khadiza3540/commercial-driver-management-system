@@ -1,10 +1,17 @@
 import sys
 import os
 
-
 from PySide6.QtWidgets import (
-    QApplication, QWidget, QMainWindow, QLabel, QPushButton,
-    QVBoxLayout, QHBoxLayout, QFrame, QMessageBox
+    QApplication,
+    QWidget,
+    QMainWindow,
+    QLabel,
+    QPushButton,
+    QVBoxLayout,
+    QHBoxLayout,
+    QFrame,
+    QMessageBox,
+    QGridLayout
 )
 from PySide6.QtGui import QPixmap
 from PySide6.QtCore import Qt
@@ -12,6 +19,241 @@ from PySide6.QtCore import Qt
 
 BASE_DIR = os.path.dirname(os.path.dirname(os.path.abspath(__file__)))
 ASSETS_DIR = os.path.join(BASE_DIR, "assets")
+
+
+class InfoPage(QWidget):
+    def __init__(self, title, content):
+        super().__init__()
+
+        self.setWindowTitle(title)
+        self.resize(1100, 700)
+        self.setMinimumSize(1000, 650)
+
+        self.setStyleSheet("""
+            QWidget {
+                background-color: #050b1a;
+                color: white;
+                font-family: Segoe UI;
+            }
+
+            QLabel {
+                background: transparent;
+            }
+
+            QPushButton#backBtn {
+                background-color: transparent;
+                color: #18a0ff;
+                border: 1px solid #18a0ff;
+                border-radius: 10px;
+                padding: 9px 14px;
+                font-size: 13px;
+                font-weight: bold;
+            }
+
+            QPushButton#backBtn:hover {
+                background-color: #0d6efd;
+                color: white;
+            }
+
+            QFrame#heroCard, QFrame#infoCard {
+                background-color: #071426;
+                border: 1px solid #1683ff;
+                border-radius: 18px;
+            }
+
+            QFrame#infoCard:hover {
+                border: 1px solid #18a0ff;
+                background-color: #0a1b32;
+            }
+
+            QLabel#pageTitle {
+                color: #18a0ff;
+                font-size: 30px;
+                font-weight: 900;
+            }
+
+            QLabel#pageSub {
+                color: #cbd5e1;
+                font-size: 14px;
+            }
+
+            QLabel#mainIcon {
+                font-size: 72px;
+            }
+
+            QLabel#icon {
+                font-size: 28px;
+            }
+
+            QLabel#cardTitle {
+                color: white;
+                font-size: 15px;
+                font-weight: bold;
+            }
+
+            QLabel#cardText {
+                color: #aab6cc;
+                font-size: 12px;
+            }
+        """)
+
+        main = QVBoxLayout(self)
+        main.setContentsMargins(28, 24, 28, 24)
+        main.setSpacing(14)
+
+        back_btn = QPushButton("← Back to Home")
+        back_btn.setObjectName("backBtn")
+        back_btn.setFixedSize(155, 42)
+        back_btn.clicked.connect(self.close)
+        main.addWidget(back_btn)
+
+        hero_card = QFrame()
+        hero_card.setObjectName("heroCard")
+        hero_card.setFixedHeight(190)
+
+        hero_layout = QHBoxLayout(hero_card)
+        hero_layout.setContentsMargins(28, 22, 28, 22)
+        hero_layout.setSpacing(22)
+
+        left = QVBoxLayout()
+        left.setSpacing(10)
+
+        title_lbl = QLabel(title)
+        title_lbl.setObjectName("pageTitle")
+
+        sub_lbl = QLabel(self.get_subtitle(title))
+        sub_lbl.setObjectName("pageSub")
+        sub_lbl.setWordWrap(True)
+
+        left.addStretch()
+        left.addWidget(title_lbl)
+        left.addWidget(sub_lbl)
+        left.addStretch()
+
+        visual = QLabel(self.get_main_icon(title))
+        visual.setObjectName("mainIcon")
+        visual.setAlignment(Qt.AlignCenter)
+        visual.setFixedSize(240, 130)
+        visual.setStyleSheet("""
+            QLabel {
+                background-color: #081226;
+                border: 1px solid #1f70c1;
+                border-radius: 18px;
+            }
+        """)
+
+        hero_layout.addLayout(left, 2)
+        hero_layout.addWidget(visual, 1)
+
+        main.addWidget(hero_card)
+
+        grid = QGridLayout()
+        grid.setSpacing(12)
+
+        cards = self.get_cards(title)
+
+        for i, item in enumerate(cards):
+            grid.addWidget(
+                self.create_info_card(item[0], item[1], item[2]),
+                i // 3,
+                i % 3
+            )
+
+        main.addLayout(grid)
+        main.addStretch()
+
+    def get_main_icon(self, title):
+        if "About" in title:
+            return "🛡"
+        elif "Features" in title:
+            return "⚙️"
+        elif "Modules" in title:
+            return "📦"
+        elif "Contact" in title:
+            return "📞"
+        return "🚗"
+
+    def get_subtitle(self, title):
+        if "About" in title:
+            return "CDMS is an AI-powered commercial driver monitoring system designed to improve driver safety, reduce fatigue risk, and support smart transportation management."
+        elif "Features" in title:
+            return "Explore the core features of the system including monitoring, drowsiness detection, face authentication, smart alerts, trips, and reports."
+        elif "Modules" in title:
+            return "The system is divided into organized modules for driver registration, monitoring, alerts, trips, AI assistant, and admin management."
+        elif "Contact" in title:
+            return "Project and developer information for the Commercial Driver Management System."
+        return ""
+
+    def create_info_card(self, icon, title, text):
+        card = QFrame()
+        card.setObjectName("infoCard")
+        card.setFixedHeight(125)
+
+        layout = QVBoxLayout(card)
+        layout.setContentsMargins(18, 13, 18, 13)
+        layout.setSpacing(5)
+
+        icon_lbl = QLabel(icon)
+        icon_lbl.setObjectName("icon")
+        icon_lbl.setFixedHeight(30)
+
+        title_lbl = QLabel(title)
+        title_lbl.setObjectName("cardTitle")
+
+        text_lbl = QLabel(text)
+        text_lbl.setObjectName("cardText")
+        text_lbl.setWordWrap(True)
+
+        layout.addWidget(icon_lbl)
+        layout.addWidget(title_lbl)
+        layout.addWidget(text_lbl)
+        layout.addStretch()
+
+        return card
+
+    def get_cards(self, title):
+        if "About" in title:
+            return [
+                ("🚗", "Driver Safety", "Improves commercial driver safety through monitoring and detection."),
+                ("😴", "Fatigue Detection", "Detects sleepy driving behavior using computer vision logic."),
+                ("📊", "Management Control", "Provides centralized control for drivers, trips, alerts, and reports."),
+                ("🧑", "Face Verification", "Verifies registered drivers before system access."),
+                ("🛣", "Trip Tracking", "Stores trip records, status, destination, and history."),
+                ("🤖", "AI Assistance", "Supports safety-focused driver interaction using AI assistant.")
+            ]
+
+        elif "Features" in title:
+            return [
+                ("📡", "Real-Time Monitoring", "Live driver activity monitoring with session tracking."),
+                ("😴", "Drowsiness Detection", "Detects fatigue signs using eye activity and alert logic."),
+                ("🧑", "Face Authentication", "Secures login through registered driver verification."),
+                ("🚨", "Smart Alerts", "Generates alert records during risky driving conditions."),
+                ("🛣", "Trip Management", "Manages active trips, completed trips, and route history."),
+                ("📈", "Reports & Analytics", "Shows safety score, alert summary, and trip statistics.")
+            ]
+
+        elif "Modules" in title:
+            return [
+                ("01", "Driver Registration", "Stores driver information and captures face dataset."),
+                ("02", "Driver Dashboard", "Displays profile, monitoring, trips, alerts, and assistant."),
+                ("03", "Drowsiness Detector", "Detects sleepy state using computer vision."),
+                ("04", "Trip Manager", "Handles route, destination, status, and trip history."),
+                ("05", "Alert Manager", "Stores drowsiness alerts and safety warnings."),
+                ("06", "Admin Panel", "Manages all drivers, alerts, trips, reports, and analytics.")
+            ]
+
+        elif "Contact" in title:
+            return [
+                ("👩‍💻", "Developer", "Khadiza Akter Konok"),
+                ("🎓", "Department", "Computer Science & Engineering"),
+                ("🛠", "Technology", "Python, PySide6, PostgreSQL, OpenCV, dlib, AI API"),
+                ("📌", "Project Type", "AI-Based Driver Safety & Monitoring Platform"),
+                ("📦", "Version", "Version 1.0"),
+                ("🛡", "System", "Commercial Driver Management System")
+            ]
+
+
+        return []
 
 
 class HomeWindow(QMainWindow):
@@ -201,6 +443,7 @@ class HomeWindow(QMainWindow):
             ("Features", False),
             ("Modules", False),
             ("Contact", False),
+
         ]:
             btn = QPushButton(text)
             btn.setFlat(True)
@@ -230,6 +473,8 @@ class HomeWindow(QMainWindow):
         top_btn_layout.addWidget(login_btn)
         top_btn_layout.addWidget(register_btn)
         header.addLayout(top_btn_layout)
+
+
 
         main.addLayout(header)
 
@@ -343,10 +588,10 @@ class HomeWindow(QMainWindow):
 
             return card
 
-        stats.addWidget(create_card("👥", "125", "Total Drivers", "Registered in system", "#3b0f6f"))
-        stats.addWidget(create_card("🛡", "24/7", "Monitoring", "Real-time tracking", "#082f68"))
-        stats.addWidget(create_card("🔔", "8", "Alerts Today", "Active notifications", "#65350f"))
-        stats.addWidget(create_card("📈", "96%", "Safety Score", "Overall performance", "#064e3b"))
+        stats.addWidget(create_card("👥", "500+", "Registered Drivers", "Commercial driver profiles", "#3b0f6f"))
+        stats.addWidget(create_card("🛡", "24/7", "Live Monitoring", "Real-time safety tracking", "#082f68"))
+        stats.addWidget(create_card("🔔", "AI", "Smart Alerts", "Drowsiness detection system", "#65350f"))
+        stats.addWidget(create_card("📈", "98%", "Safety Accuracy", "AI monitoring performance", "#064e3b"))
 
         main.addLayout(stats)
 
@@ -368,15 +613,71 @@ class HomeWindow(QMainWindow):
         clicked_btn.style().unpolish(clicked_btn)
         clicked_btn.style().polish(clicked_btn)
 
-        print(f"{clicked_btn.text()} tab clicked")
+        page = clicked_btn.text()
+
+        if page == "Home":
+            return
+
+        if page == "About":
+            content = (
+                "Commercial Driver Management System (CDMS) is an AI-powered desktop application "
+                "designed to improve commercial driver safety through real-time monitoring, "
+                "drowsiness detection, face authentication, trip management, alert tracking, "
+                "and centralized admin control.\n\n"
+                "The system helps transport organizations manage drivers efficiently and reduce "
+                "fatigue-related risks using computer vision and intelligent monitoring."
+            )
+            self.info_page = InfoPage("About CDMS", content)
+            self.info_page.showMaximized()
+
+        elif page == "Features":
+            content = (
+                "• Real-Time Driver Monitoring\n\n"
+                "• AI-Based Drowsiness Detection\n\n"
+                "• Face Authentication and Verification\n\n"
+                "• Smart Alert System\n\n"
+                "• Trip Management\n\n"
+                "• Driver Dashboard\n\n"
+                "• Admin Management Panel\n\n"
+                "• Reports and Analytics"
+            )
+            self.info_page = InfoPage("Key Features", content)
+            self.info_page.showMaximized()
+
+        elif page == "Modules":
+            content = (
+                "01. Driver Registration Module\n\n"
+                "02. Login and OTP Verification Module\n\n"
+                "03. Face Recognition Module\n\n"
+                "04. Drowsiness Detection Module\n\n"
+                "05. Trip Management Module\n\n"
+                "06. Alert Management Module\n\n"
+                "07. AI Driver Assistant Module\n\n"
+                "08. Admin Dashboard Module"
+            )
+            self.info_page = InfoPage("System Modules", content)
+            self.info_page.showMaximized()
+
+        elif page == "Contact":
+            content = (
+                "Developer: Khadiza Akter Konok\n\n"
+                "Project: Commercial Driver Management System\n\n"
+                "Technology: Python, PySide6, PostgreSQL, OpenCV, dlib, AI API\n\n"
+                "System Type: AI-Based Driver Safety & Monitoring Platform\n\n"
+                "Version: 1.0"
+            )
+            self.info_page = InfoPage("Contact & Project Info", content)
+            self.info_page.showMaximized()
+
+
 
     def open_login(self):
         try:
             from ui_qt.login_window import LoginWindow
             self.login_window = LoginWindow()
             self.login_window.showMaximized()
+
         except Exception as e:
-            from PySide6.QtWidgets import QMessageBox
             QMessageBox.critical(self, "Login Window Error", str(e))
 
     def open_register(self):
@@ -385,7 +686,6 @@ class HomeWindow(QMainWindow):
             self.register_window = RegisterWindow()
             self.register_window.showMaximized()
         except Exception as e:
-            from PySide6.QtWidgets import QMessageBox
             QMessageBox.critical(self, "Register Window Error", str(e))
 
 

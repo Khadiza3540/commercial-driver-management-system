@@ -1,19 +1,33 @@
-from google import genai
+from groq import Groq
 
-API_KEY = "AIzaSyC28dwbpY-JFYy1iHrkwT-GBoW-MFjxvWg"
-
-client = genai.Client(api_key=API_KEY)
+client = Groq(
+    api_key="YOUR_GROQ_API_KEY"
+)
 
 
 def ask_ai(message):
-
     try:
-        response = client.models.generate_content(
-            model="gemini-2.0-flash",
-            contents=message
+        completion = client.chat.completions.create(
+            model="llama-3.1-8b-instant",
+            messages=[
+                {
+                    "role": "system",
+                    "content": (
+                        "You are a helpful AI Driver Assistant for a "
+                        "Commercial Driver Management System. "
+                        "Give short, useful, safety-focused answers."
+                    )
+                },
+                {
+                    "role": "user",
+                    "content": message
+                }
+            ],
+            temperature=0.7,
+            max_tokens=150
         )
 
-        return response.text
+        return completion.choices[0].message.content
 
-    except Exception as e:
-        return f"AI Error: {str(e)}"
+    except Exception:
+        return "AI service temporarily unavailable."

@@ -921,12 +921,13 @@ class DriverDashboard(QMainWindow):
     def logout(self):
         self.monitoring_on = False
         self.update_status()
-        self.close()
 
         from ui_qt.home_window import HomeWindow
 
         self.home_window = HomeWindow()
         self.home_window.showMaximized()
+
+        self.close()
 
     def send_message(self):
         user_text = self.chat_input.text().strip()

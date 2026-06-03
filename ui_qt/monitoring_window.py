@@ -32,8 +32,6 @@ class MonitoringWindow(QWidget):
         self.current_location = current_location
         self.destination = destination
 
-
-
         self.setWindowTitle("CDMS - Driver Monitoring")
         self.resize(1200, 650)
 
@@ -52,7 +50,10 @@ class MonitoringWindow(QWidget):
         self.session_id = None
         self.trip_id = None
         self.alert_saved = False
+
         self.driver_verified = False
+        self.match_count = 0
+        self.failed_count = 0
 
         self.setStyleSheet("""
             QWidget {
@@ -230,10 +231,125 @@ class MonitoringWindow(QWidget):
 
         self.monitoring_on = True
         self.alert_saved = False
+        self.driver_verified = False
+        self.match_count = 0
+        self.failed_count = 0
+
         self.status_label.setText("Status: Active")
         self.status_label.setStyleSheet("color:#22c55e;font-size:18px;font-weight:bold;")
+
         self.load_route_map()
         self.timer.start(30)
+
+    def draw_clean_overlay(self, frame, status, ear):
+        overlay_x = 22
+        overlay_y = 32
+        line_gap = 25
+
+        status_color = (0, 0, 255) if status == "DROWSY" else (0, 255, 0)
+
+        cv2.putText(
+            frame,
+            f"Driver: {self.driver_name}",
+            (overlay_x, overlay_y),
+            cv2.FONT_HERSHEY_SIMPLEX,
+            0.55,
+            (0, 255, 0),
+            2
+        )
+
+        cv2.putText(
+            frame,
+            f"Status: {status}",
+            (overlay_x, overlay_y + line_gap),
+            cv2.FONT_HERSHEY_SIMPLEX,
+            0.55,
+            status_color,
+            2
+        )
+
+        cv2.putText(
+            frame,
+            f"EAR: {ear:.2f}",
+            (overlay_x, overlay_y + line_gap * 2),
+            cv2.FONT_HERSHEY_SIMPLEX,
+            0.55,
+            (0, 255, 255),
+            2
+        )
+
+        return frame
+
+    def draw_unauthorized_overlay(self, frame, message="Authorized driver not detected"):
+        cv2.rectangle(frame, (8, 5), (620, 75), (0, 0, 0), -1)
+        cv2.rectangle(frame, (8, 5), (620, 75), (0, 0, 255), 2)
+
+        cv2.putText(
+            frame,
+            message,
+            (25, 50),
+            cv2.FONT_HERSHEY_SIMPLEX,
+            0.85,
+            (0, 0, 255),
+            2
+        )
+
+        return frame
+
+    def verify_current_driver(self, frame, gray, faces):
+        authorized = False
+        best_confidence = None
+        best_box = None
+
+        found_same_driver = False
+
+        for (x, y, w, h) in faces:
+            face_img = gray[y:y + h, x:x + w]
+            face_img = cv2.resize(face_img, (200, 200))
+
+            predicted_id, confidence = self.recognizer.predict(face_img)
+
+            print("Predicted:", predicted_id, "Login ID:", self.driver_id, "Confidence:", confidence)
+
+            if int(predicted_id) == int(self.driver_id):
+                found_same_driver = True
+                best_confidence = confidence
+                best_box = (x, y, w, h)
+
+                if confidence < 70:
+                    self.match_count += 1
+                else:
+                    self.match_count = 0
+            else:
+                if not self.driver_verified:
+                    self.match_count = 0
+
+        if self.match_count >= 3:
+            self.driver_verified = True
+            authorized = True
+
+        if self.driver_verified:
+            authorized = True
+
+        if authorized and best_box is not None:
+            x, y, w, h = best_box
+            cv2.rectangle(frame, (x, y), (x + w, y + h), (0, 255, 0), 2)
+
+            label_text = self.driver_name
+            if best_confidence is not None:
+                label_text = f"{self.driver_name} ({int(best_confidence)})"
+
+            cv2.putText(
+                frame,
+                label_text,
+                (x, y - 10),
+                cv2.FONT_HERSHEY_SIMPLEX,
+                0.75,
+                (0, 255, 0),
+                2
+            )
+
+        return authorized, frame
 
     def update_frame(self):
         if self.cap is None:
@@ -247,52 +363,17 @@ class MonitoringWindow(QWidget):
         gray = cv2.cvtColor(frame, cv2.COLOR_BGR2GRAY)
         faces = self.face_cascade.detectMultiScale(gray, 1.3, 5)
 
-        authorized = self.driver_verified
-
-        for (x, y, w, h) in faces:
-            face_img = gray[y:y + h, x:x + w]
-            face_img = cv2.resize(face_img, (200, 200))
-
-            predicted_id, confidence = self.recognizer.predict(face_img)
-
-            print("Predicted:", predicted_id, "Login ID:", self.driver_id, "Confidence:", confidence)
-
-            if int(predicted_id) == int(self.driver_id) and confidence < 45:
-                self.driver_verified = True
-                authorized = True
-
-                cv2.rectangle(frame, (x, y), (x + w, y + h), (0, 255, 0), 2)
-                cv2.putText(
-                    frame,
-                    f"{self.driver_name} ({int(confidence)})",
-                    (x, y - 10),
-                    cv2.FONT_HERSHEY_SIMPLEX,
-                    0.8,
-                    (0, 255, 0),
-                    2
-                )
-
-                break
+        authorized, frame = self.verify_current_driver(frame, gray, faces)
 
         if not authorized:
             self.closed_counter = 0
-            self.driver_verified = False
             self.alert_saved = False
 
             if self.alarm_on:
                 stop_alarm()
                 self.alarm_on = False
 
-            cv2.putText(
-                frame,
-                "Authorized driver not detected",
-                (30, 45),
-                cv2.FONT_HERSHEY_SIMPLEX,
-                0.9,
-                (0, 0, 255),
-                2
-            )
-
+            frame = self.draw_unauthorized_overlay(frame)
             self.show_frame(frame)
             return
 
@@ -318,36 +399,7 @@ class MonitoringWindow(QWidget):
 
             self.alert_saved = False
 
-        cv2.putText(
-            frame,
-            f"Driver: {self.driver_name}",
-            (30, 45),
-            cv2.FONT_HERSHEY_SIMPLEX,
-            0.8,
-            (0, 255, 0),
-            2
-        )
-
-        cv2.putText(
-            frame,
-            f"Status: {status}",
-            (30, 80),
-            cv2.FONT_HERSHEY_SIMPLEX,
-            0.9,
-            (0, 0, 255) if status == "DROWSY" else (0, 255, 0),
-            2
-        )
-
-        cv2.putText(
-            frame,
-            f"EAR: {ear:.2f}",
-            (30, 115),
-            cv2.FONT_HERSHEY_SIMPLEX,
-            0.8,
-            (0, 0, 255) if status == "DROWSY" else (0, 255, 0),
-            2
-        )
-
+        frame = self.draw_clean_overlay(frame, status, ear)
         self.show_frame(frame)
 
     def load_route_map(self):
@@ -359,10 +411,8 @@ class MonitoringWindow(QWidget):
         if not (start and end):
             return
 
-        # JS-safe strings
         start_js = json.dumps(start)
         end_js = json.dumps(end)
-
 
         ORS_API_KEY = "eyJvcmciOiI1YjNjZTM1OTc4NTExMTAwMDFjZjYyNDgiLCJpZCI6IjcyYTc3YjA5N2ExNTRhYzI5ZDliZWI0ZWY1ZGUzOGNiIiwiaCI6Im11cm11cjY0In0="
 
@@ -417,7 +467,6 @@ class MonitoringWindow(QWidget):
                     L.marker(start).addTo(map).bindPopup("Start");
                     L.marker(end).addTo(map).bindPopup("End");
 
-                    // 👉 ORS Routing API
                     let response = await fetch(
                         "https://api.openrouteservice.org/v2/directions/driving-car/geojson",
                         {{
@@ -508,6 +557,8 @@ class MonitoringWindow(QWidget):
 
         self.monitoring_on = False
         self.driver_verified = False
+        self.match_count = 0
+        self.failed_count = 0
         self.closed_counter = 0
 
         self.status_label.setText("Status: OFF")
@@ -519,10 +570,3 @@ class MonitoringWindow(QWidget):
     def closeEvent(self, event):
         self.end_monitoring()
         event.accept()
-
-
-
-    #app = QApplication(sys.argv)
-    #win = MonitoringWindow()
-    #win.showMaximized()
-    #sys.exit(app.exec())

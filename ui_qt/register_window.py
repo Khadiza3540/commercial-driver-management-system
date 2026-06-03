@@ -5,13 +5,12 @@ import cv2
 import numpy as np
 from PIL import Image
 
-
-
-from database import create_tables, register_driver, authorize_driver
+from database import create_tables, register_driver
 
 from PySide6.QtWidgets import (
     QApplication, QWidget, QLabel, QPushButton, QVBoxLayout,
-    QHBoxLayout, QLineEdit, QTextEdit, QCheckBox, QFrame, QMessageBox
+    QHBoxLayout, QLineEdit, QTextEdit, QCheckBox, QFrame,
+    QMessageBox, QScrollArea
 )
 from PySide6.QtCore import Qt
 
@@ -126,6 +125,37 @@ class RegisterWindow(QWidget):
                 background-color: #0d6efd;
                 border: 1px solid #18a0ff;
             }
+
+            QScrollArea {
+                border: none;
+                background: transparent;
+            }
+
+            QScrollArea QWidget {
+                background: transparent;
+            }
+
+            QScrollBar:vertical {
+                background: #071426;
+                width: 12px;
+                border-radius: 6px;
+                margin: 0px;
+            }
+
+            QScrollBar::handle:vertical {
+                background: #1f70c1;
+                border-radius: 6px;
+                min-height: 45px;
+            }
+
+            QScrollBar::handle:vertical:hover {
+                background: #18a0ff;
+            }
+
+            QScrollBar::add-line:vertical,
+            QScrollBar::sub-line:vertical {
+                height: 0px;
+            }
         """)
 
         main = QVBoxLayout(self)
@@ -159,17 +189,32 @@ class RegisterWindow(QWidget):
         # Left form card
         form_card = QFrame()
         form_card.setObjectName("card")
-        form_layout = QVBoxLayout(form_card)
-        form_layout.setContentsMargins(25, 25, 25, 25)
-        form_layout.setSpacing(10)
+        form_card_layout = QVBoxLayout(form_card)
+        form_card_layout.setContentsMargins(25, 25, 25, 25)
+        form_card_layout.setSpacing(12)
 
         section_title = QLabel("👤  Driver Information")
         section_title.setObjectName("sectionTitle")
-        form_layout.addWidget(section_title)
+        form_card_layout.addWidget(section_title)
+
+        scroll = QScrollArea()
+        scroll.setWidgetResizable(True)
+        scroll.setHorizontalScrollBarPolicy(Qt.ScrollBarAlwaysOff)
+        scroll.setVerticalScrollBarPolicy(Qt.ScrollBarAsNeeded)
+
+        form_inner = QWidget()
+        form_layout = QVBoxLayout(form_inner)
+        form_layout.setContentsMargins(0, 0, 8, 0)
+        form_layout.setSpacing(10)
 
         grid1 = QHBoxLayout()
+        grid1.setSpacing(22)
+
         left_col = QVBoxLayout()
+        left_col.setSpacing(4)
+
         right_col = QVBoxLayout()
+        right_col.setSpacing(4)
 
         self.entries = {}
         self.errors = {}
@@ -187,6 +232,7 @@ class RegisterWindow(QWidget):
 
             err = QLabel("")
             err.setObjectName("error")
+            err.setFixedHeight(13)
 
             parent.addWidget(lbl)
             parent.addWidget(entry)
@@ -207,33 +253,30 @@ class RegisterWindow(QWidget):
         add_input(right_col, "dob", "Date of Birth", "YYYY-MM-DD")
 
         add_input(left_col, "vehicle_no", "Vehicle Number", "DHK-1234")
-        add_input(right_col, "license", "License Number", "Enter license number")
+        add_input(right_col, "confirm_password", "Confirm Password", "Confirm password", password=True)
 
         add_input(left_col, "password", "Password", "Enter password", password=True)
-        add_input(right_col, "confirm_password", "Confirm Password", "Confirm password", password=True)
 
         address_lbl = QLabel("Address")
         address_lbl.setObjectName("label")
 
         self.address = QTextEdit()
         self.address.setPlaceholderText("Enter address")
-        self.address.setFixedHeight(50)
+        self.address.setFixedHeight(60)
 
         self.address_error = QLabel("")
         self.address_error.setObjectName("error")
+        self.address_error.setFixedHeight(13)
 
-        left_col.addWidget(address_lbl)
-        left_col.addWidget(self.address)
-        left_col.addWidget(self.address_error)
-        left_col.addSpacing(8)
+        right_col.addWidget(address_lbl)
+        right_col.addWidget(self.address)
+        right_col.addWidget(self.address_error)
 
         grid1.addLayout(left_col)
-        grid1.addSpacing(15)
         grid1.addLayout(right_col)
 
         form_layout.addLayout(grid1)
-
-        form_layout.addSpacing(8)
+        form_layout.addSpacing(6)
 
         self.terms = QCheckBox("I agree to the Terms & Conditions")
         self.terms.setStyleSheet("""
@@ -250,11 +293,16 @@ class RegisterWindow(QWidget):
         self.general_error.setObjectName("error")
         form_layout.addWidget(self.general_error)
 
+        form_layout.addStretch()
+
+        scroll.setWidget(form_inner)
+        form_card_layout.addWidget(scroll)
+
         submit_btn = QPushButton("NEXT: CAPTURE FACE  →")
         submit_btn.setObjectName("primaryBtn")
         submit_btn.setFixedHeight(55)
         submit_btn.clicked.connect(self.submit_register)
-        form_layout.addWidget(submit_btn)
+        form_card_layout.addWidget(submit_btn)
 
         # Right preview card
         preview_card = QFrame()
@@ -345,16 +393,16 @@ class RegisterWindow(QWidget):
             if not re.match(r"^[A-Za-z0-9_]{4,20}$", value):
                 return self.mark_error(key, "4-20 chars: letters, numbers, underscore")
         elif key == "email":
-            if not re.match(r"^[\\w\\.-]+@[\\w\\.-]+\\.\\w{2,}$", value):
+             if not re.match(r"^[\\w\\.-]+@[\\w\\.-]+\\.\\w{2,}$", value):
                 return self.mark_error(key, "Enter valid email address")
         elif key == "license":
             if not re.match(r"^[A-Za-z0-9-]{5,20}$", value):
                 return self.mark_error(key, "5-20 chars: letters, numbers, hyphen")
         elif key == "dob":
-            if not re.match(r"^\d{4}-\d{2}-\d{2}$", value):
+            if not re.match(r"^\\d{4}-\\d{2}-\\d{2}$", value):
                 return self.mark_error(key, "Format: YYYY-MM-DD")
         elif key == "phone":
-            if not re.match(r"^01[3-9]\d{8}$", value):
+            if not re.match(r"^01[3-9]\\d{8}$", value):
                 return self.mark_error(key, "Use BD format: 01712345678")
         elif key == "vehicle_no":
             if not re.match(r"^[A-Za-z0-9-]{3,20}$", value):
@@ -446,9 +494,11 @@ class RegisterWindow(QWidget):
                 QMessageBox.critical(self, "Error", "Face model training failed.")
                 return
 
-            authorize_driver(driver_id)
-
-            QMessageBox.information(self, "Success", "Driver registered successfully ✅")
+            QMessageBox.information(
+                self,
+                "Registration Submitted",
+                "Driver registered successfully ✅\n\nPlease wait for Admin approval before login."
+            )
             self.close()
 
         except Exception as e:
