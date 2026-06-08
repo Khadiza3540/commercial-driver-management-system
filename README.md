@@ -1,4 +1,6 @@
 # 🚛 Commercial Driver Management System (CDMS)
+<img width="1909" height="986" alt="Screenshot 2026-06-03 103515" src="https://github.com/user-attachments/assets/bb45c129-be01-4460-9321-765331f82b81" />
+
 
 An AI-powered Commercial Driver Management System designed to improve road safety through driver monitoring, face recognition, drowsiness detection, trip management, and real-time alert generation.
 
